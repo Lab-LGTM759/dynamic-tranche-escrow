@@ -5,152 +5,183 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Tranche Escrow Settlement Panel</title>
     <link rel="stylesheet" href="style.css">
+    
     <!-- Ethers.js v6 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+    
+    <!-- Web3Modal / AppKit (WalletConnect v2) для поддержки Tangem, TrustWallet, MetaMask -->
+    <script type="module">
+        import { createWeb3Modal, defaultConfig } from 'https://esm.sh/@web3modal/ethers@5.1.11';
+
+        // Укажите ваш Project ID с https://cloud.walletconnect.com
+        const projectId = 'YOUR_WALLETCONNECT_PROJECT_ID';
+
+        const sepolia = {
+            chainId: 11155111,
+            name: 'Sepolia',
+            currency: 'ETH',
+            explorerUrl: 'https://sepolia.etherscan.io',
+            rpcUrl: 'https://rpc.sepolia.org'
+        };
+
+        const metadata = {
+            name: 'Dynamic Tranche Escrow',
+            description: 'Dynamic Tranche Escrow Settlement Panel',
+            url: 'https://lab-lgtm759.github.io/dynamic-tranche-escrow/',
+            icons: ['https://assets.web3modal.com/modal/logo.png']
+        };
+
+        window.web3modal = createWeb3Modal({
+            ethersConfig: defaultConfig({ metadata }),
+            chains: [sepolia],
+            projectId,
+            enableAnalytics: false
+        });
+    </script>
 </head>
 <body>
     <div class="container">
-        <!-- Шапка -->
+        <!-- Шапка / Header -->
         <header class="header">
             <div class="logo">🔴 Dynamic Tranche Escrow Settlement (EVM)</div>
             <div class="header-actions">
-                <span class="lang-tag">ru / en</span>
-                <button id="btnConnectWallet" class="btn primary">Connect Wallet</button>
+                <span class="lang-tag">RU / EN</span>
+                <button id="btnConnectWallet" class="btn primary">Подключить кошелек / Connect Wallet (Tangem / MetaMask)</button>
             </div>
         </header>
 
-        <!-- Текущее время -->
+        <!-- Текущее время / Current Time -->
         <div class="card time-card">
-            Текущее время (Лондон / GMT): <span id="londonClock">12:00:00 GMT</span>
+            Текущее время (Лондон / GMT) / Current Time (London / GMT): <span id="londonClock">12:00:00 GMT</span>
         </div>
 
-        <!-- Статус контракта -->
+        <!-- Статус контракта / Contract Status -->
         <div class="card status-banner">
             <span class="status-icon">✅</span>
-            <span>Контракт активен в сети Sepolia (EVM): <strong id="contractAddrDisplay">0x...</strong></span>
+            <span>Контракт активен в сети Sepolia (EVM) / Contract active on Sepolia network: <strong id="contractAddrDisplay">0x...</strong></span>
         </div>
 
-        <!-- Информация о кошельке -->
+        <!-- Информация о кошельке / Wallet Info -->
         <div class="card grid-3">
             <div>
-                <label>Адрес кошелька</label>
-                <div id="walletAddress" class="value-highlight">Не подключен</div>
+                <label>Адрес кошелька / Wallet Address</label>
+                <div id="walletAddress" class="value-highlight">Не подключен / Not Connected</div>
             </div>
             <div>
-                <label>Ваша роль</label>
-                <div id="userRoleDisplay" class="value-highlight">Определение...</div>
+                <label>Ваша роль / Your Role</label>
+                <div id="userRoleDisplay" class="value-highlight">Определение... / Detecting...</div>
             </div>
             <div>
-                <label>Статус контракта</label>
-                <div><span id="contractStatusBadge" class="badge warning">Ожидание депозита</span></div>
+                <label>Статус контракта / Contract Status</label>
+                <div><span id="contractStatusBadge" class="badge warning">Ожидание депозита / Pending Deposit</span></div>
             </div>
         </div>
 
-        <!-- Мониторинг динамического транша (Real-time) -->
+        <!-- Мониторинг динамического транша / Tranche Monitoring -->
         <div class="card">
-            <h2>Мониторинг текущего транша #<span id="currentTrancheId">0</span> / 112 (Real-time)</h2>
+            <h2>Мониторинг текущего транша / Current Tranche Monitoring #<span id="currentTrancheId">0</span> / 112 (Real-time)</h2>
             <div class="grid-4" style="margin-top: 15px;">
                 <div class="sub-card">
-                    <label>Объем транша</label>
+                    <label>Объем транша / Tranche Volume</label>
                     <div id="trancheEurVolume" class="metric-value">-- EUR</div>
                 </div>
                 <div class="sub-card">
-                    <label>Курс Оракула (EUR/USD)</label>
-                    <div id="oracleRate" class="metric-value">Загрузка...</div>
+                    <label>Курс Оракула / Oracle Rate (EUR/USD)</label>
+                    <div id="oracleRate" class="metric-value">Загрузка... / Loading...</div>
                 </div>
                 <div class="sub-card">
-                    <label>Требуемый депозит USDT (57.75%)</label>
-                    <div id="requiredUsdt" class="metric-value">Загрузка...</div>
+                    <label>Депозит USDT (57.75%) / Required USDT</label>
+                    <div id="requiredUsdt" class="metric-value">Загрузка... / Loading...</div>
                 </div>
                 <div class="sub-card">
-                    <label>Требуемый ETH (Газ)</label>
+                    <label>Требуемый ETH (Газ) / Required ETH (Gas)</label>
                     <div id="requiredEth" class="metric-value">-- ETH</div>
                 </div>
             </div>
             <div class="buffer-info" style="margin-top: 12px;">
-                Динамический буфер (2.75%): <span id="bufferAmountUsdt">0 USDT</span> (Накапливается до завершения всех траншей)
+                Динамический буфер / Dynamic Buffer (2.75%): <span id="bufferAmountUsdt">0 USDT</span> (Накапливается до завершения всех траншей / Accumulated until final completion)
             </div>
         </div>
 
-        <!-- Депозит Приемки -->
+        <!-- Депозит Приемки / Receiver Deposit -->
         <div class="card">
-            <h2>Депозит Приемки (Receiver)</h2>
-            <p class="subtitle">Приемка переводит остаток USDT (через approve & deposit) + ETH на газ непосредственно на адрес эскроу-контракта.</p>
+            <h2>Депозит Приемки / Receiver Deposit</h2>
+            <p class="subtitle">Приемка переводит остаток USDT (через approve & deposit) + ETH на газ непосредственно на адрес эскроу-контракта / Receiver transfers USDT balance (via approve & deposit) + ETH for gas directly to escrow address.</p>
             
             <div class="grid-2" style="margin-top: 15px;">
-                <div>К оплате USDT: <strong id="netUsdtToPay">0 USDT</strong></div>
-                <div>К оплате ETH: <strong id="netEthToPay">0 ETH</strong></div>
+                <div>К оплате / Net Payable USDT: <strong id="netUsdtToPay">0 USDT</strong></div>
+                <div>К оплате / Net Payable ETH: <strong id="netEthToPay">0 ETH</strong></div>
             </div>
 
             <div class="button-group" style="margin-top: 15px;">
-                <button id="btnApproveUsdt" class="btn secondary">1. Approve USDT</button>
-                <button id="btnDepositTranche" class="btn success">2. Deposit USDT + ETH</button>
+                <button id="btnApproveUsdt" class="btn secondary">1. Одобрить / Approve USDT</button>
+                <button id="btnDepositTranche" class="btn success">2. Внести депозит / Deposit USDT + ETH</button>
             </div>
         </div>
 
-        <!-- Этап 1: Подписи сторон -->
+        <!-- Этап 1: Подписи сторон / Phase 1: Signatures -->
         <div class="card">
-            <h2>Этап 1: Фиксация и Подписи Сторон (3-of-3 Multi-Sig)</h2>
+            <h2>Этап 1: Фиксация и Подписи Сторон / Phase 1: Signatures (3-of-3 Multi-Sig)</h2>
             <div class="timer-banner">
-                Таймер окна подписей (10 минут): <span id="signatureTimer">00м 00с</span>
+                Таймер окна подписей (10 минут) / Signature Window Timer (10 min): <span id="signatureTimer">00m 00s</span>
             </div>
-            <p class="subtitle">* Если 3 подписи не собраны за 10 минут, подписи сбрасываются автоматически.</p>
+            <p class="subtitle">* Если 3 подписи не собраны за 10 минут, подписи сбрасываются автоматически / If 3 signatures are not collected within 10 minutes, signatures reset automatically.</p>
 
             <div class="grid-3" style="margin-top: 15px;">
                 <div class="sub-card align-center">
-                    <h3>Инвестор (Investor)</h3>
-                    <div style="margin: 8px 0;"><span id="badgeInvestor" class="badge warning">Ожидание</span></div>
-                    <button id="btnSignInvestor" class="btn primary">Подписать (Investor)</button>
+                    <h3>Инвестор / Investor</h3>
+                    <div style="margin: 8px 0;"><span id="badgeInvestor" class="badge warning">Ожидание / Pending</span></div>
+                    <button id="btnSignInvestor" class="btn primary">Подписать / Sign (Investor)</button>
                 </div>
                 <div class="sub-card align-center">
-                    <h3>Оракул (Oracle)</h3>
-                    <div style="margin: 8px 0;"><span id="badgeOracle" class="badge warning">Ожидание</span></div>
-                    <button id="btnSignOracle" class="btn primary">Подписать (Oracle)</button>
+                    <h3>Оракул / Oracle</h3>
+                    <div style="margin: 8px 0;"><span id="badgeOracle" class="badge warning">Ожидание / Pending</span></div>
+                    <button id="btnSignOracle" class="btn primary">Подписать / Sign (Oracle)</button>
                 </div>
                 <div class="sub-card align-center">
-                    <h3>Приемка (Receiver)</h3>
-                    <div style="margin: 8px 0;"><span id="badgeReceiver" class="badge warning">Ожидание</span></div>
-                    <button id="btnSignReceiver" class="btn primary">Подписать (Receiver)</button>
+                    <h3>Приемка / Receiver</h3>
+                    <div style="margin: 8px 0;"><span id="badgeReceiver" class="badge warning">Ожидание / Pending</span></div>
+                    <button id="btnSignReceiver" class="btn primary">Подписать / Sign (Receiver)</button>
                 </div>
             </div>
         </div>
 
-        <!-- Реестр Выплат Участникам (55.00%) -->
+        <!-- Реестр Выплат Участникам / Payout Registry -->
         <div class="card">
-            <h2>Распределение Выплат по Базовой Комиссии (55.00%)</h2>
-            <p class="subtitle">При получении 3/3 подписей контракт автоматически распределяет USDT участникам и переходит к следующему траншу.</p>
+            <h2>Распределение Выплат по Базовой Комиссии / Base Fee Distribution (55.00%)</h2>
+            <p class="subtitle">При получении 3/3 подписей контракт автоматически распределяет USDT участникам и переходит к следующему траншу / Upon 3/3 signatures, contract distributes USDT to participants and advances to next tranche.</p>
             
             <table style="margin-top: 12px;">
                 <thead>
                     <tr>
-                        <th>Участник</th>
-                        <th>Доля (%)</th>
-                        <th>Адрес кошелька</th>
-                        <th>Расчетный USDT к выплате</th>
+                        <th>Участник / Payee</th>
+                        <th>Доля / Share (%)</th>
+                        <th>Адрес кошелька / Wallet Address</th>
+                        <th>Расчетный USDT / Share USDT</th>
                     </tr>
                 </thead>
                 <tbody id="payeesTableBody">
-                    <tr><td>Инвестор</td><td>10.00%</td><td id="addrInvestor">--</td><td id="shareInvestor">0 USDT</td></tr>
-                    <tr><td>Оракул</td><td>10.00%</td><td id="addrOracle">--</td><td id="shareOracle">0 USDT</td></tr>
-                    <tr><td>Участник №0</td><td>5.00%</td><td id="addrParticipant0">--</td><td id="sharePart0">0 USDT</td></tr>
-                    <tr><td>Участник №1</td><td>10.00%</td><td id="addrParticipant1">--</td><td id="sharePart1">0 USDT</td></tr>
-                    <tr><td>Участник №2</td><td>10.00%</td><td id="addrParticipant2">--</td><td id="sharePart2">0 USDT</td></tr>
-                    <tr><td>Участник №3</td><td>10.00%</td><td id="addrParticipant3">--</td><td id="sharePart3">0 USDT</td></tr>
+                    <tr><td>Инвестор / Investor</td><td>10.00%</td><td id="addrInvestor">--</td><td id="shareInvestor">0 USDT</td></tr>
+                    <tr><td>Оракул / Oracle</td><td>10.00%</td><td id="addrOracle">--</td><td id="shareOracle">0 USDT</td></tr>
+                    <tr><td>Участник / Participant #0</td><td>5.00%</td><td id="addrParticipant0">--</td><td id="sharePart0">0 USDT</td></tr>
+                    <tr><td>Участник / Participant #1</td><td>10.00%</td><td id="addrParticipant1">--</td><td id="sharePart1">0 USDT</td></tr>
+                    <tr><td>Участник / Participant #2</td><td>10.00%</td><td id="addrParticipant2">--</td><td id="sharePart2">0 USDT</td></tr>
+                    <tr><td>Участник / Participant #3</td><td>10.00%</td><td id="addrParticipant3">--</td><td id="sharePart3">0 USDT</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Аварийный вывод -->
+        <!-- Аварийный вывод / Emergency Withdraw -->
         <div class="card">
-            <h2>Аварийный возврат (Emergency Withdraw)</h2>
-            <p class="subtitle">Доступен только Приемке (Receiver) при отсутствии активности по контракту более 10 дней.</p>
-            <button id="btnEmergencyWithdraw" class="btn danger" style="margin-top: 10px;">Emergency Withdraw (10 days inactivity)</button>
+            <h2>Аварийный возврат / Emergency Withdraw</h2>
+            <p class="subtitle">Доступен только Приемке (Receiver) при отсутствии активности по контракту более 10 дней / Available only to Receiver upon 10 days of inactivity.</p>
+            <button id="btnEmergencyWithdraw" class="btn danger" style="margin-top: 10px;">Аварийный возврат / Emergency Withdraw (10 days inactivity)</button>
         </div>
 
-        <!-- Журнал событий -->
+        <!-- Журнал событий / Event Log -->
         <div class="card">
-            <h2>Журнал действий / Статус транзакций</h2>
-            <div id="statusLog" class="status-log">Готов к работе. Подключите кошелек...</div>
+            <h2>Журнал действий / Transaction & Gas Status Log</h2>
+            <div id="statusLog" class="status-log">Готов к работе. Подключите кошелек... / Ready. Connect your wallet...</div>
         </div>
     </div>
 
