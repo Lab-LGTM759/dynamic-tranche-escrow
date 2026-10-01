@@ -1,195 +1,70 @@
-:root {
-  --bg-color: #0f172a;
-  --card-bg: #1e293b;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: #334155;
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tranche Status Monitor</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Ethers.js v6 via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+  <!-- QRCode.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
 
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --success-border: #10b981;
-  --success-text: #34d399;
+<div class="tranche-card">
+  <div class="card-header">
+    <h2 class="card-title">Транш #<span id="trancheId">0</span></h2>
+  </div>
+  
+  <div class="info-row">
+    <span class="info-label">Объем EUR:</span>
+    <span class="info-value" id="eurVolume">-</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Курс EUR/USDT:</span>
+    <span class="info-value" id="rate">-</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Депозит (57.75%):</span>
+    <span class="info-value" id="grossUsdt">-</span>
+  </div>
+  
+  <div id="statusBadge" class="status-badge status-ok">Загрузка...</div>
 
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --danger-border: #ef4444;
-  --danger-text: #f87171;
-}
+  <div class="pay-details">
+    <div class="info-row">
+      <span class="info-label">К доплате USDT:</span>
+      <span class="info-value text-danger" id="netUsdtToPay">0.00</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">К доплате ETH:</span>
+      <span class="info-value text-danger" id="netEthToPay">0.00</span>
+    </div>
+  </div>
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0;
-  padding: 20px;
-}
+  <!-- Секция генерации QR для подписей (Tangem) -->
+  <div class="qr-section">
+    <h3 class="qr-title">Подпись транша (Tangem / Wallet)</h3>
+    <div class="role-buttons">
+      <button class="btn-role" onclick="generateSignatureQR('investor')">Инвестор</button>
+      <button class="btn-role" onclick="generateSignatureQR('oracle')">Оракул</button>
+      <button class="btn-role" onclick="generateSignatureQR('receiver')">Приемка</button>
+    </div>
+  </div>
+</div>
 
-.tranche-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 440px;
-  padding: 24px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-}
+<!-- Модальное окно с QR-кодом -->
+<div id="qrModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeQRModal()">&times;</span>
+    <h3 id="modalTitle">QR Code для Tangem</h3>
+    <div id="qrcode"></div>
+    <p id="qrMessage" class="qr-msg"></p>
+  </div>
+</div>
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  font-size: 0.95rem;
-}
-
-.info-label {
-  color: var(--text-muted);
-}
-
-.info-value {
-  font-weight: 600;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin: 20px 0;
-  transition: all 0.3s ease;
-}
-
-.status-badge.status-ok {
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
-  color: var(--success-text);
-}
-
-.status-badge.status-need-pay {
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  color: var(--danger-text);
-}
-
-.pay-details {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.text-danger {
-  color: var(--danger-text);
-}
-
-.text-success {
-  color: var(--success-text);
-}
-
-/* Секция подписей и Tangem QR */
-.qr-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-  text-align: center;
-}
-
-.qr-title {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-}
-
-.role-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.btn-role {
-  flex: 1;
-  padding: 10px 6px;
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.btn-role:hover {
-  background-color: #2563eb;
-}
-
-/* Модальное окно с QR-кодом */
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.75);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--card-bg);
-  padding: 24px;
-  border-radius: 16px;
-  text-align: center;
-  position: relative;
-  max-width: 320px;
-  width: 90%;
-  border: 1px solid var(--border-color);
-}
-
-.close-btn {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 24px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-#qrcode {
-  display: flex;
-  justify-content: center;
-  margin: 16px 0;
-}
-
-#qrcode img {
-  border: 8px solid #ffffff;
-  border-radius: 8px;
-}
-
-.qr-msg {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-top: 10px;
-  line-height: 1.4;
-}
+<script src="app.js"></script>
+</body>
+</html>
