@@ -1,190 +1,106 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Tranche Escrow Settlement Panel</title>
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- Ethers.js v6 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
-    
-    <!-- Web3Modal / AppKit (WalletConnect v2) для поддержки Tangem, TrustWallet, MetaMask -->
-    <script type="module">
-        import { createWeb3Modal, defaultConfig } from 'https://esm.sh/@web3modal/ethers@5.1.11';
+:root {
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-border: #10b981;
+  --success-text: #34d399;
+  
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-border: #ef4444;
+  --danger-text: #f87171;
+}
 
-        // Укажите ваш Project ID с https://cloud.walletconnect.com
-        const projectId = 'YOUR_WALLETCONNECT_PROJECT_ID';
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 20px;
+}
 
-        const sepolia = {
-            chainId: 11155111,
-            name: 'Sepolia',
-            currency: 'ETH',
-            explorerUrl: 'https://sepolia.etherscan.io',
-            rpcUrl: 'https://rpc.sepolia.org'
-        };
+.tranche-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
 
-        const metadata = {
-            name: 'Dynamic Tranche Escrow',
-            description: 'Dynamic Tranche Escrow Settlement Panel',
-            url: 'https://lab-lgtm759.github.io/dynamic-tranche-escrow/',
-            icons: ['https://assets.web3modal.com/modal/logo.png']
-        };
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
 
-        window.web3modal = createWeb3Modal({
-            ethersConfig: defaultConfig({ metadata }),
-            chains: [sepolia],
-            projectId,
-            enableAnalytics: false
-        });
-    </script>
-</head>
-<body>
-    <div class="container">
-        <!-- Шапка / Header -->
-        <header class="header">
-            <div class="logo">🔴 Dynamic Tranche Escrow Settlement (EVM)</div>
-            <div class="header-actions">
-                <span class="lang-tag">RU / EN</span>
-                <button id="btnConnectWallet" class="btn primary">Подключить кошелек / Connect Wallet (Tangem / MetaMask)</button>
-            </div>
-        </header>
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
 
-        <!-- Текущее время / Current Time -->
-        <div class="card time-card">
-            Текущее время (Лондон / GMT) / Current Time (London / GMT): <span id="londonClock">12:00:00 GMT</span>
-        </div>
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
 
-        <!-- Статус контракта / Contract Status -->
-        <div class="card status-banner">
-            <span class="status-icon">✅</span>
-            <span>Контракт активен в сети Sepolia (EVM) / Contract active on Sepolia network: <strong id="contractAddrDisplay">0x...</strong></span>
-        </div>
+.info-label {
+  color: var(--text-muted);
+}
 
-        <!-- Информация о кошельке / Wallet Info -->
-        <div class="card grid-3">
-            <div>
-                <label>Адрес кошелька / Wallet Address</label>
-                <div id="walletAddress" class="value-highlight">Не подключен / Not Connected</div>
-            </div>
-            <div>
-                <label>Ваша роль / Your Role</label>
-                <div id="userRoleDisplay" class="value-highlight">Определение... / Detecting...</div>
-            </div>
-            <div>
-                <label>Статус контракта / Contract Status</label>
-                <div><span id="contractStatusBadge" class="badge warning">Ожидание депозита / Pending Deposit</span></div>
-            </div>
-        </div>
+.info-value {
+  font-weight: 600;
+}
 
-        <!-- Мониторинг динамического транша / Tranche Monitoring -->
-        <div class="card">
-            <h2>Мониторинг текущего транша / Current Tranche Monitoring #<span id="currentTrancheId">0</span> / 112 (Real-time)</h2>
-            <div class="grid-4" style="margin-top: 15px;">
-                <div class="sub-card">
-                    <label>Объем транша / Tranche Volume</label>
-                    <div id="trancheEurVolume" class="metric-value">-- EUR</div>
-                </div>
-                <div class="sub-card">
-                    <label>Курс Оракула / Oracle Rate (EUR/USD)</label>
-                    <div id="oracleRate" class="metric-value">Загрузка... / Loading...</div>
-                </div>
-                <div class="sub-card">
-                    <label>Депозит USDT (57.75%) / Required USDT</label>
-                    <div id="requiredUsdt" class="metric-value">Загрузка... / Loading...</div>
-                </div>
-                <div class="sub-card">
-                    <label>Требуемый ETH (Газ) / Required ETH (Gas)</label>
-                    <div id="requiredEth" class="metric-value">-- ETH</div>
-                </div>
-            </div>
-            <div class="buffer-info" style="margin-top: 12px;">
-                Динамический буфер / Dynamic Buffer (2.75%): <span id="bufferAmountUsdt">0 USDT</span> (Накапливается до завершения всех траншей / Accumulated until final completion)
-            </div>
-        </div>
+.status-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 20px 0;
+  transition: all 0.3s ease;
+}
 
-        <!-- Депозит Приемки / Receiver Deposit -->
-        <div class="card">
-            <h2>Депозит Приемки / Receiver Deposit</h2>
-            <p class="subtitle">Приемка переводит остаток USDT (через approve & deposit) + ETH на газ непосредственно на адрес эскроу-контракта / Receiver transfers USDT balance (via approve & deposit) + ETH for gas directly to escrow address.</p>
-            
-            <div class="grid-2" style="margin-top: 15px;">
-                <div>К оплате / Net Payable USDT: <strong id="netUsdtToPay">0 USDT</strong></div>
-                <div>К оплате / Net Payable ETH: <strong id="netEthToPay">0 ETH</strong></div>
-            </div>
+.status-badge.status-ok {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
 
-            <div class="button-group" style="margin-top: 15px;">
-                <button id="btnApproveUsdt" class="btn secondary">1. Одобрить / Approve USDT</button>
-                <button id="btnDepositTranche" class="btn success">2. Внести депозит / Deposit USDT + ETH</button>
-            </div>
-        </div>
+.status-badge.status-need-pay {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
+}
 
-        <!-- Этап 1: Подписи сторон / Phase 1: Signatures -->
-        <div class="card">
-            <h2>Этап 1: Фиксация и Подписи Сторон / Phase 1: Signatures (3-of-3 Multi-Sig)</h2>
-            <div class="timer-banner">
-                Таймер окна подписей (10 минут) / Signature Window Timer (10 min): <span id="signatureTimer">00m 00s</span>
-            </div>
-            <p class="subtitle">* Если 3 подписи не собраны за 10 минут, подписи сбрасываются автоматически / If 3 signatures are not collected within 10 minutes, signatures reset automatically.</p>
+.pay-details {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+}
 
-            <div class="grid-3" style="margin-top: 15px;">
-                <div class="sub-card align-center">
-                    <h3>Инвестор / Investor</h3>
-                    <div style="margin: 8px 0;"><span id="badgeInvestor" class="badge warning">Ожидание / Pending</span></div>
-                    <button id="btnSignInvestor" class="btn primary">Подписать / Sign (Investor)</button>
-                </div>
-                <div class="sub-card align-center">
-                    <h3>Оракул / Oracle</h3>
-                    <div style="margin: 8px 0;"><span id="badgeOracle" class="badge warning">Ожидание / Pending</span></div>
-                    <button id="btnSignOracle" class="btn primary">Подписать / Sign (Oracle)</button>
-                </div>
-                <div class="sub-card align-center">
-                    <h3>Приемка / Receiver</h3>
-                    <div style="margin: 8px 0;"><span id="badgeReceiver" class="badge warning">Ожидание / Pending</span></div>
-                    <button id="btnSignReceiver" class="btn primary">Подписать / Sign (Receiver)</button>
-                </div>
-            </div>
-        </div>
+.text-danger {
+  color: var(--danger-text);
+}
 
-        <!-- Реестр Выплат Участникам / Payout Registry -->
-        <div class="card">
-            <h2>Распределение Выплат по Базовой Комиссии / Base Fee Distribution (55.00%)</h2>
-            <p class="subtitle">При получении 3/3 подписей контракт автоматически распределяет USDT участникам и переходит к следующему траншу / Upon 3/3 signatures, contract distributes USDT to participants and advances to next tranche.</p>
-            
-            <table style="margin-top: 12px;">
-                <thead>
-                    <tr>
-                        <th>Участник / Payee</th>
-                        <th>Доля / Share (%)</th>
-                        <th>Адрес кошелька / Wallet Address</th>
-                        <th>Расчетный USDT / Share USDT</th>
-                    </tr>
-                </thead>
-                <tbody id="payeesTableBody">
-                    <tr><td>Инвестор / Investor</td><td>10.00%</td><td id="addrInvestor">--</td><td id="shareInvestor">0 USDT</td></tr>
-                    <tr><td>Оракул / Oracle</td><td>10.00%</td><td id="addrOracle">--</td><td id="shareOracle">0 USDT</td></tr>
-                    <tr><td>Участник / Participant #0</td><td>5.00%</td><td id="addrParticipant0">--</td><td id="sharePart0">0 USDT</td></tr>
-                    <tr><td>Участник / Participant #1</td><td>10.00%</td><td id="addrParticipant1">--</td><td id="sharePart1">0 USDT</td></tr>
-                    <tr><td>Участник / Participant #2</td><td>10.00%</td><td id="addrParticipant2">--</td><td id="sharePart2">0 USDT</td></tr>
-                    <tr><td>Участник / Participant #3</td><td>10.00%</td><td id="addrParticipant3">--</td><td id="sharePart3">0 USDT</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Аварийный вывод / Emergency Withdraw -->
-        <div class="card">
-            <h2>Аварийный возврат / Emergency Withdraw</h2>
-            <p class="subtitle">Доступен только Приемке (Receiver) при отсутствии активности по контракту более 10 дней / Available only to Receiver upon 10 days of inactivity.</p>
-            <button id="btnEmergencyWithdraw" class="btn danger" style="margin-top: 10px;">Аварийный возврат / Emergency Withdraw (10 days inactivity)</button>
-        </div>
-
-        <!-- Журнал событий / Event Log -->
-        <div class="card">
-            <h2>Журнал действий / Transaction & Gas Status Log</h2>
-            <div id="statusLog" class="status-log">Готов к работе. Подключите кошелек... / Ready. Connect your wallet...</div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-</body>
-</html>
+.text-success {
+  color: var(--success-text);
+}
