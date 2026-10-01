@@ -1,195 +1,312 @@
 :root {
-  --bg-color: #0f172a;
-  --card-bg: #1e293b;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: #334155;
+  --bg-dark: #0b0f19;
+  --card-bg: #111827;
+  --sub-card-bg: #1f2937;
+  --border-color: #374151;
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
 
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --success-border: #10b981;
-  --success-text: #34d399;
+  --accent-purple: #6366f1;
+  --accent-purple-hover: #4f46e5;
+  --accent-red: #dc2626;
+  --accent-red-hover: #b91c1c;
 
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --danger-border: #ef4444;
-  --danger-text: #f87171;
+  --status-warning-bg: rgba(217, 119, 6, 0.15);
+  --status-warning-text: #f59e0b;
+  --status-warning-border: #d97706;
+
+  --status-success-bg: rgba(16, 185, 129, 0.15);
+  --status-success-text: #10b981;
+  --status-success-border: #059669;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-color);
+  background-color: var(--bg-dark);
   color: var(--text-main);
+  padding-bottom: 40px;
+}
+
+/* Header */
+.top-header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  min-height: 100vh;
-  margin: 0;
+  padding: 16px 32px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dot-red {
+  width: 12px;
+  height: 12px;
+  background-color: var(--accent-red);
+  border-radius: 50%;
+}
+
+.brand h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary {
+  background: var(--sub-card-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.btn-primary-red {
+  background: var(--accent-red);
+  color: #fff;
+}
+.btn-primary-red:hover { background: var(--accent-red-hover); }
+
+.btn-primary-purple, .btn-purple {
+  background: var(--accent-purple);
+  color: #fff;
+}
+.btn-primary-purple:hover, .btn-purple:hover { background: var(--accent-purple-hover); }
+
+.btn-action-main {
+  background: #2563eb;
+  color: #fff;
+  padding: 12px 24px;
+  font-size: 0.95rem;
+}
+.btn-action-main:hover { background: #1d4ed8; }
+
+.width-full { width: 100%; }
+
+/* Layout & Cards */
+.container {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   padding: 20px;
 }
 
-.tranche-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 440px;
-  padding: 24px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-}
-
-.card-header {
+.time-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
 }
 
-.card-title {
+.status-banner {
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.banner-success {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.sub-card {
+  background: var(--sub-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.align-center { text-align: center; }
+
+/* Text & Labels */
+.card-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.card-value-sm {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.card-value-lg {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 0;
+  color: #60a5fa;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  font-size: 0.95rem;
-}
-
-.info-label {
+.desc-text {
+  font-size: 0.85rem;
   color: var(--text-muted);
+  margin-top: 6px;
 }
 
-.info-value {
+.text-danger { color: #f87171; }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.status-badge {
+.badge-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
+}
+
+.badge-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
+}
+
+/* Timer & Custom Boxes */
+.timer-display {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #f59e0b;
+  margin: 8px 0;
+}
+
+.buffer-box {
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 4px solid var(--accent-purple);
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+
+.deposit-action-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin: 20px 0;
-  transition: all 0.3s ease;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.status-badge.status-ok {
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
-  color: var(--success-text);
+/* Tables */
+.table-responsive {
+  overflow-x: auto;
 }
 
-.status-badge.status-need-pay {
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  color: var(--danger-text);
-}
-
-.pay-details {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.text-danger {
-  color: var(--danger-text);
-}
-
-.text-success {
-  color: var(--success-text);
-}
-
-/* Секция подписей и Tangem QR */
-.qr-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-  text-align: center;
-}
-
-.qr-title {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-}
-
-.role-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.btn-role {
-  flex: 1;
-  padding: 10px 6px;
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
   font-size: 0.85rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
-.btn-role:hover {
-  background-color: #2563eb;
+.data-table th, .data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-/* Модальное окно с QR-кодом */
+.data-table th {
+  background: var(--sub-card-bg);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Modal */
 .modal {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.75);
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.8);
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 999;
 }
 
 .modal-content {
   background: var(--card-bg);
+  border: 1px solid var(--border-color);
   padding: 24px;
   border-radius: 16px;
   text-align: center;
-  position: relative;
-  max-width: 320px;
   width: 90%;
-  border: 1px solid var(--border-color);
+  max-width: 360px;
+  position: relative;
 }
 
 .close-btn {
   position: absolute;
-  top: 10px;
-  right: 15px;
+  top: 12px; right: 16px;
   font-size: 24px;
   color: var(--text-muted);
   cursor: pointer;
 }
 
-#qrcode {
+.qr-container {
   display: flex;
   justify-content: center;
-  margin: 16px 0;
+  margin: 20px 0;
 }
 
-#qrcode img {
-  border: 8px solid #ffffff;
+.qr-container img {
+  border: 8px solid #fff;
   border-radius: 8px;
 }
 
 .qr-msg {
   font-size: 0.85rem;
   color: var(--text-muted);
-  margin-top: 10px;
+  white-space: pre-line;
   line-height: 1.4;
 }
+
+/* Spacers */
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.my-8 { margin: 8px 0; }
