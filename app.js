@@ -1,5 +1,5 @@
 // Конфигурация контракта / Contract Configuration
-const ESCROW_ADDRESS = "0x1234567890123456789012345678901234567890"; // Укажите адрес деплоя
+const ESCROW_ADDRESS = "0x1ab1A57Ed19df7f1Dd466Ac5572cDad7dc917442"; // Укажите адрес деплоя
 
 const ESCROW_ABI = [
   "function currentTrancheId() view returns (uint256)",
