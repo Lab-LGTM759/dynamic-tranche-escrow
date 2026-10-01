@@ -1,315 +1,129 @@
-// --- КОНФИГУРАЦИЯ / CONFIGURATION ---
-const CONTRACT_ADDRESS = "0xВАШ_АДРЕС_ЗАДЕПЛОЕННОГО_КОНТРАКТА"; 
-const USDT_ADDRESS = "0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0"; // Sepolia USDT ERC-20 Address
+// Адрес деплоя вашего смарт-контракта
+const ESCROW_ADDRESS = "0xВаш_Адрес_Контракта";
 
+// ABI вызовов чтения
 const ESCROW_ABI = [
-    "function currentTrancheId() view returns (uint256)",
-    "function isFunded() view returns (bool)",
-    "function investor() view returns (address)",
-    "function receiver() view returns (address)",
-    "function oracle() view returns (address)",
-    "function participant0() view returns (address)",
-    "function participant1() view returns (address)",
-    "function participant2() view returns (address)",
-    "function participant3() view returns (address)",
-    "function investorSigned() view returns (bool)",
-    "function oracleSigned() view returns (bool)",
-    "function receiverSigned() view returns (bool)",
-    "function getTrancheDetails(uint256 trancheId) view returns (uint256 eurVolume, uint256 currentEurUsdtRate, uint256 grossUsdtRequired, uint256 grossEthRequired, uint256 investorShareUsdt, uint256 oracleShareUsdt, uint256 participant0ShareUsdt, uint256 participant1ShareUsdt, uint256 participant2ShareUsdt, uint256 participant3ShareUsdt, uint256 netUsdtToPay, uint256 netEthToPay, bool isFundedStatus, uint256 signatureTimeLeft)",
-    "function depositTrancheAndGas() external payable",
-    "function signTranche() external",
-    "function emergencyWithdrawInactivity() external"
+  "function currentTrancheId() view returns (uint256)",
+  "function getTrancheDetails(uint256 trancheId) view returns (uint256 eurVolume, uint256 currentEurUsdtRate, uint256 grossUsdtRequired, uint256 grossEthRequired, uint256 investorShareUsdt, uint256 oracleShareUsdt, uint256 participant0ShareUsdt, uint256 participant1ShareUsdt, uint256 participant2ShareUsdt, uint256 participant3ShareUsdt, uint256 netUsdtToPay, uint256 netEthToPay, bool isFundedStatus, uint256 signatureTimeLeft)"
 ];
 
-const ERC20_ABI = [
-    "function approve(address spender, uint256 amount) external returns (bool)",
-    "function allowance(address owner, address spender) view returns (uint256)",
-    "function balanceOf(address account) view returns (uint256)"
-];
+let provider;
+let escrowContract;
+let isTrancheFunded = false;
+let qrInstance = null;
 
-let provider = null;
-let signer = null;
-let userAddress = null;
-let escrowContract = null;
-let usdtContract = null;
+async function initApp() {
+  if (window.ethereum) {
+    provider = new ethers.BrowserProvider(window.ethereum);
+  } else {
+    provider = new ethers.JsonRpcProvider("https://rpc.ankr.com/eth");
+  }
 
-// --- ЧАСЫ ЛОНДОНА / LONDON CLOCK ---
-function updateLondonClock() {
-    const clockElem = document.getElementById('londonClock');
-    if (!clockElem) return;
-    const options = { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-    clockElem.innerText = new Intl.DateTimeFormat('en-GB', options).format(new Date()) + " GMT";
-}
-setInterval(updateLondonClock, 1000);
+  escrowContract = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, provider);
 
-// --- ПОДКТЮЧЕНИЕ КОШЕЛЬКА / WALLET CONNECTION ---
-document.getElementById('btnConnectWallet').addEventListener('click', async () => {
-    try {
-        if (window.web3modal) {
-            await window.web3modal.open();
-            const walletProvider = window.web3modal.getWalletProvider();
-            if (walletProvider) {
-                provider = new ethers.BrowserProvider(walletProvider);
-                signer = await provider.getSigner();
-                userAddress = await signer.getAddress();
-                initContracts();
-            }
-        } else if (window.ethereum) {
-            provider = new ethers.BrowserProvider(window.ethereum);
-            await provider.send("eth_requestAccounts", []);
-            signer = await provider.getSigner();
-            userAddress = await signer.getAddress();
-            initContracts();
-        } else {
-            alert("Кошелек не найден / Wallet provider not found.");
-        }
-    } catch (err) {
-        logStatus("Ошибка подключения / Connection error: " + err.message);
-    }
-});
-
-async function initContracts() {
-    document.getElementById('walletAddress').innerText = `${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
-    document.getElementById('contractAddrDisplay').innerText = CONTRACT_ADDRESS;
-
-    escrowContract = new ethers.Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
-    usdtContract = new ethers.Contract(USDT_ADDRESS, ERC20_ABI, signer);
-
-    logStatus(`Кошелек подключен / Wallet connected: ${userAddress}`);
-    await refreshData();
-    setInterval(refreshData, 5000);
+  await updateTrancheMonitor();
+  setInterval(updateTrancheMonitor, 5000);
 }
 
-// --- ПРОВЕРКА БАЛАНСА ГАЗА (ETH) / GAS BALANCE CHECK ---
-async function checkGasBalance(estimatedGasUnits, valueWeiToSend = 0n) {
-    const balanceWei = await provider.getBalance(userAddress);
-    const feeData = await provider.getFeeData();
-    const gasPrice = feeData.maxFeePerGas || feeData.gasPrice || ethers.parseUnits("20", "gwei");
+async function updateTrancheMonitor() {
+  try {
+    const currentId = await escrowContract.currentTrancheId();
+    const details = await escrowContract.getTrancheDetails(currentId);
 
-    // Запас 20% на колебания gwei / 20% safety margin for gas price spikes
-    const estimatedGasFeeWei = (estimatedGasUnits * gasPrice * 120n) / 100n;
-    const totalEthRequiredWei = estimatedGasFeeWei + valueWeiToSend;
+    const eurFormatted = ethers.formatUnits(details.eurVolume, 18);
+    const rateFormatted = (Number(details.currentEurUsdtRate) / 1e8).toFixed(4); 
+    const grossUsdtFormatted = ethers.formatUnits(details.grossUsdtRequired, 6);  
 
-    if (balanceWei < totalEthRequiredWei) {
-        const currentEth = ethers.formatEther(balanceWei);
-        const requiredEth = ethers.formatEther(totalEthRequiredWei);
-        const gasFeeOnly = ethers.formatEther(estimatedGasFeeWei);
+    const netUsdtToPay = details.netUsdtToPay;
+    const netEthToPay = details.netEthToPay;
 
-        const errorMsg = `Недостаточно ETH для газа! / Insufficient ETH for gas!\n` +
-            `Баланс / Balance: ${Number(currentEth).toFixed(5)} ETH\n` +
-            `Требуемый газ / Required Gas Fee: ~${Number(gasFeeOnly).toFixed(5)} ETH\n` +
-            `Всего требуется / Total Required: ${Number(requiredEth).toFixed(5)} ETH`;
+    const usdtToPayFormatted = ethers.formatUnits(netUsdtToPay, 6);
+    const ethToPayFormatted = ethers.formatUnits(netEthToPay, 18);
 
-        alert(errorMsg);
-        logStatus(`Ошибка: Недостаточно ETH на балансе (${Number(currentEth).toFixed(5)} ETH из ${Number(requiredEth).toFixed(5)} ETH) / Gas Error: Insufficient ETH`);
-        return false;
-    }
-    return true;
-}
+    document.getElementById("trancheId").innerText = currentId.toString();
+    document.getElementById("eurVolume").innerText = `${Number(eurFormatted).toLocaleString()} EUR`;
+    document.getElementById("rate").innerText = `$${rateFormatted}`;
+    document.getElementById("grossUsdt").innerText = `${Number(grossUsdtFormatted).toLocaleString()} USDT`;
 
-// --- СЧИТЫВАНИЕ И ОТОБРАЖЕНИЕ ДАННЫХ / DATA REFRESH ---
-async function refreshData() {
-    if (!escrowContract) return;
+    document.getElementById("netUsdtToPay").innerText = `${Number(usdtToPayFormatted).toLocaleString()} USDT`;
+    document.getElementById("netEthToPay").innerText = `${Number(ethToPayFormatted).toFixed(4)} ETH`;
 
-    try {
-        const currentTranche = await escrowContract.currentTrancheId();
-        document.getElementById('currentTrancheId').innerText = currentTranche.toString();
+    const statusBadge = document.getElementById("statusBadge");
 
-        const details = await escrowContract.getTrancheDetails(currentTranche);
-
-        const eurVol = ethers.formatUnits(details.eurVolume, 18);
-        const rate = (Number(details.currentEurUsdtRate) / 1e8).toFixed(4);
-        const grossUsdt = (Number(details.grossUsdtRequired) / 1e6).toFixed(2);
-        const grossEth = ethers.formatEther(details.grossEthRequired);
-
-        const netUsdt = (Number(details.netUsdtToPay) / 1e6).toFixed(2);
-        const netEth = ethers.formatEther(details.netEthToPay);
-
-        document.getElementById('trancheEurVolume').innerText = `${Number(eurVol).toLocaleString()} EUR`;
-        document.getElementById('oracleRate').innerText = `${rate} USD / EUR`;
-        document.getElementById('requiredUsdt').innerText = `${Number(grossUsdt).toLocaleString()} USDT`;
-        document.getElementById('requiredEth').innerText = `${grossEth} ETH`;
-
-        document.getElementById('netUsdtToPay').innerText = `${Number(netUsdt).toLocaleString()} USDT`;
-        document.getElementById('netEthToPay').innerText = `${netEth} ETH`;
-
-        const bufferUsdt = (Number(grossUsdt) * (275 / 5775)).toFixed(2);
-        document.getElementById('bufferAmountUsdt').innerText = `${Number(bufferUsdt).toLocaleString()} USDT`;
-
-        const isFunded = details.isFundedStatus;
-        const statusBadge = document.getElementById('contractStatusBadge');
-        if (isFunded) {
-            statusBadge.innerText = "ПРОФИНАНСИРОВАН / FUNDED";
-            statusBadge.className = "badge success";
-        } else {
-            statusBadge.innerText = "ОЖИДАЕТ ДЕПОЗИТА / PENDING DEPOSIT";
-            statusBadge.className = "badge warning";
-        }
-
-        const timeLeft = Number(details.signatureTimeLeft);
-        if (timeLeft > 0) {
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            document.getElementById('signatureTimer').innerText = `${m}m ${s < 10 ? '0' : ''}${s}s`;
-        } else {
-            document.getElementById('signatureTimer').innerText = "00m 00s (Не активен / Inactive)";
-        }
-
-        const invSigned = await escrowContract.investorSigned();
-        const oraSigned = await escrowContract.oracleSigned();
-        const recSigned = await escrowContract.receiverSigned();
-
-        updateSignatureBadge('badgeInvestor', invSigned);
-        updateSignatureBadge('badgeOracle', oraSigned);
-        updateSignatureBadge('badgeReceiver', recSigned);
-
-        const invAddr = await escrowContract.investor();
-        const recAddr = await escrowContract.receiver();
-        const oraAddr = await escrowContract.oracle();
-
-        document.getElementById('addrInvestor').innerText = `${invAddr.substring(0, 6)}...${invAddr.substring(38)}`;
-        document.getElementById('addrOracle').innerText = `${oraAddr.substring(0, 6)}...${oraAddr.substring(38)}`;
-        document.getElementById('addrParticipant0').innerText = `${(await escrowContract.participant0()).substring(0, 6)}...`;
-        document.getElementById('addrParticipant1').innerText = `${(await escrowContract.participant1()).substring(0, 6)}...`;
-        document.getElementById('addrParticipant2').innerText = `${(await escrowContract.participant2()).substring(0, 6)}...`;
-        document.getElementById('addrParticipant3').innerText = `${(await escrowContract.participant3()).substring(0, 6)}...`;
-
-        document.getElementById('shareInvestor').innerText = `${(Number(details.investorShareUsdt) / 1e6).toFixed(2)} USDT`;
-        document.getElementById('shareOracle').innerText = `${(Number(details.oracleShareUsdt) / 1e6).toFixed(2)} USDT`;
-        document.getElementById('sharePart0').innerText = `${(Number(details.participant0ShareUsdt) / 1e6).toFixed(2)} USDT`;
-        document.getElementById('sharePart1').innerText = `${(Number(details.participant1ShareUsdt) / 1e6).toFixed(2)} USDT`;
-        document.getElementById('sharePart2').innerText = `${(Number(details.participant2ShareUsdt) / 1e6).toFixed(2)} USDT`;
-        document.getElementById('sharePart3').innerText = `${(Number(details.participant3ShareUsdt) / 1e6).toFixed(2)} USDT`;
-
-        const userHex = userAddress.toLowerCase();
-        if (userHex === invAddr.toLowerCase()) {
-            document.getElementById('userRoleDisplay').innerText = "Инвестор / Investor";
-        } else if (userHex === recAddr.toLowerCase()) {
-            document.getElementById('userRoleDisplay').innerText = "Приемка / Receiver";
-        } else if (userHex === oraAddr.toLowerCase()) {
-            document.getElementById('userRoleDisplay').innerText = "Оракул / Oracle";
-        } else {
-            document.getElementById('userRoleDisplay').innerText = "Наблюдатель / Viewer";
-        }
-
-    } catch (err) {
-        console.error("Ошибка обновления / Refresh error:", err);
-    }
-}
-
-function updateSignatureBadge(elemId, isSigned) {
-    const elem = document.getElementById(elemId);
-    if (isSigned) {
-        elem.innerText = "ПОДПИСАНО / SIGNED";
-        elem.className = "badge success";
+    if (netUsdtToPay === 0n && netEthToPay === 0n) {
+      statusBadge.className = "status-badge status-ok";
+      statusBadge.innerText = "✓ Депозит полностью покрыт";
+      isTrancheFunded = true; // Депозит пополнен
     } else {
-        elem.innerText = "Ожидание / Pending";
-        elem.className = "badge warning";
+      statusBadge.className = "status-badge status-need-pay";
+      statusBadge.innerText = "⚠ Требуется пополнение транша";
+      isTrancheFunded = false;
     }
+
+  } catch (error) {
+    console.error("Ошибка при запросе к контракту:", error);
+  }
 }
 
-// --- ТРАНЗАКЦИИ / TRANSACTIONS ---
+// Генерация QR-кода подписи
+function generateSignatureQR(role) {
+  let attempts = parseInt(sessionStorage.getItem("qr_attempts") || "0");
 
-// 1. Approve USDT
-document.getElementById('btnApproveUsdt').addEventListener('click', async () => {
-    try {
-        if (!signer) return alert("Подключите кошелек / Connect wallet");
-        
-        const currentTranche = await escrowContract.currentTrancheId();
-        const details = await escrowContract.getTrancheDetails(currentTranche);
-        const usdtToPay = details.netUsdtToPay;
+  // Если депозит НЕ пополнен и сделано 3 клика
+  if (!isTrancheFunded && attempts >= 3) {
+    showModal(
+      "Лимит исчерпан / Limit Reached",
+      null,
+      "Для активации QR кода надо пополнить депозит / To activate the QR code, you must deposit funds."
+    );
+    return;
+  }
 
-        logStatus("Оценка газа для Approve... / Estimating gas for Approve...");
-        const estimatedGas = await usdtContract.approve.estimateGas(CONTRACT_ADDRESS, usdtToPay);
+  // Увеличение счетчика попыток, если депозит еще не внесен
+  if (!isTrancheFunded) {
+    attempts++;
+    sessionStorage.setItem("qr_attempts", attempts.toString());
+  }
 
-        const hasEnoughEth = await checkGasBalance(estimatedGas);
-        if (!hasEnoughEth) return;
+  // Вызов метода signTranche() в EVM
+  const signMethodInterface = new ethers.Interface(["function signTranche()"]);
+  const calldata = signMethodInterface.encodeFunctionData("signTranche");
 
-        logStatus("Запрос Approve USDT... / Requesting USDT Approve...");
-        const tx = await usdtContract.approve(CONTRACT_ADDRESS, usdtToPay);
-        logStatus(`Транзакция отправлена / Tx sent: ${tx.hash}`);
-        await tx.wait();
-        logStatus("Approve подтвержден! / Approve confirmed!");
-    } catch (err) {
-        logStatus("Ошибка Approve / Approve error: " + (err.reason || err.message));
-    }
-});
+  // Формирование URI для кошелька (Tangem / Metamask / WalletConnect)
+  const qrUri = `ethereum:${ESCROW_ADDRESS}@1?data=${calldata}`;
 
-// 2. Deposit Tranche
-document.getElementById('btnDepositTranche').addEventListener('click', async () => {
-    try {
-        if (!signer) return alert("Подключите кошелек / Connect wallet");
+  const roleNames = {
+    investor: "Инвестор (Investor)",
+    oracle: "Оракул (Oracle)",
+    receiver: "Приемка (Receiver)"
+  };
 
-        const currentTranche = await escrowContract.currentTrancheId();
-        const details = await escrowContract.getTrancheDetails(currentTranche);
-        const ethToPay = details.netEthToPay;
-
-        logStatus("Оценка газа для Депозита... / Estimating gas for Deposit...");
-        const estimatedGas = await escrowContract.depositTrancheAndGas.estimateGas({ value: ethToPay });
-
-        const hasEnoughEth = await checkGasBalance(estimatedGas, ethToPay);
-        if (!hasEnoughEth) return;
-
-        logStatus("Отправка депозита USDT + ETH... / Sending USDT + ETH Deposit...");
-        const tx = await escrowContract.depositTrancheAndGas({ value: ethToPay });
-        logStatus(`Депозит отправлен / Deposit sent: ${tx.hash}`);
-        await tx.wait();
-        logStatus("Депозит успешно внесен! / Deposit successfully sent!");
-        await refreshData();
-    } catch (err) {
-        logStatus("Ошибка депозита / Deposit error: " + (err.reason || err.message));
-    }
-});
-
-// 3. Подписи участников / Signatures
-async function handleSign() {
-    try {
-        if (!signer) return alert("Подключите кошелек / Connect wallet");
-
-        logStatus("Оценка газа для Подписи... / Estimating gas for Sign...");
-        const estimatedGas = await escrowContract.signTranche.estimateGas();
-
-        const hasEnoughEth = await checkGasBalance(estimatedGas);
-        if (!hasEnoughEth) return;
-
-        logStatus("Отправка подписи в блокчейн... / Submitting signature...");
-        const tx = await escrowContract.signTranche();
-        logStatus(`Подпись отправлена / Signature sent: ${tx.hash}`);
-        await tx.wait();
-        logStatus("Подпись успешно зафиксирована! / Signature confirmed!");
-        await refreshData();
-    } catch (err) {
-        logStatus("Ошибка подписи / Sign error: " + (err.reason || err.message));
-    }
+  showModal(`QR Подпись: ${roleNames[role]}`, qrUri, `Попытка ${isTrancheFunded ? 'безлимитно (депозит внесен)' : attempts + '/3'}`);
 }
 
-document.getElementById('btnSignInvestor').addEventListener('click', handleSign);
-document.getElementById('btnSignOracle').addEventListener('click', handleSign);
-document.getElementById('btnSignReceiver').addEventListener('click', handleSign);
+function showModal(title, uriData, messageText) {
+  document.getElementById("modalTitle").innerText = title;
+  document.getElementById("qrMessage").innerText = messageText;
 
-// 4. Emergency Withdraw
-document.getElementById('btnEmergencyWithdraw').addEventListener('click', async () => {
-    try {
-        if (!signer) return alert("Подключите кошелек / Connect wallet");
+  const qrContainer = document.getElementById("qrcode");
+  qrContainer.innerHTML = "";
 
-        logStatus("Оценка газа для Emergency Withdraw... / Estimating gas...");
-        const estimatedGas = await escrowContract.emergencyWithdrawInactivity.estimateGas();
+  if (uriData) {
+    qrInstance = new QRCode(qrContainer, {
+      text: uriData,
+      width: 200,
+      height: 200,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
 
-        const hasEnoughEth = await checkGasBalance(estimatedGas);
-        if (!hasEnoughEth) return;
-
-        logStatus("Запрос Emergency Withdraw... / Requesting Emergency Withdraw...");
-        const tx = await escrowContract.emergencyWithdrawInactivity();
-        logStatus(`Транзакция отправлена / Tx sent: ${tx.hash}`);
-        await tx.wait();
-        logStatus("Аварийный возврат выполнен! / Emergency withdraw executed!");
-        await refreshData();
-    } catch (err) {
-        logStatus("Ошибка возврата / Withdraw error: " + (err.reason || err.message));
-    }
-});
-
-function logStatus(msg) {
-    const logElem = document.getElementById('statusLog');
-    logElem.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  document.getElementById("qrModal").style.display = "flex";
 }
+
+function closeQRModal() {
+  document.getElementById("qrModal").style.display = "none";
+}
+
+window.addEventListener("DOMContentLoaded", initApp);
