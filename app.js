@@ -1,4 +1,4 @@
-// Адрес деплоя вашего смарт-контракта
+// Адрес деплоя смарт-контракта
 const ESCROW_ADDRESS = "0xВаш_Адрес_Контракта";
 
 // ABI вызовов чтения
@@ -53,7 +53,7 @@ async function updateTrancheMonitor() {
     if (netUsdtToPay === 0n && netEthToPay === 0n) {
       statusBadge.className = "status-badge status-ok";
       statusBadge.innerText = "✓ Депозит полностью покрыт";
-      isTrancheFunded = true; // Депозит пополнен
+      isTrancheFunded = true;
     } else {
       statusBadge.className = "status-badge status-need-pay";
       statusBadge.innerText = "⚠ Требуется пополнение транша";
@@ -69,7 +69,7 @@ async function updateTrancheMonitor() {
 function generateSignatureQR(role) {
   let attempts = parseInt(sessionStorage.getItem("qr_attempts") || "0");
 
-  // Если депозит НЕ пополнен и сделано 3 клика
+  // Лимит исчерпан и депозит еще не внесен
   if (!isTrancheFunded && attempts >= 3) {
     showModal(
       "Лимит исчерпан / Limit Reached",
@@ -79,17 +79,17 @@ function generateSignatureQR(role) {
     return;
   }
 
-  // Увеличение счетчика попыток, если депозит еще не внесен
+  // Считаем попытки только если депозит НЕ пополнен
   if (!isTrancheFunded) {
     attempts++;
     sessionStorage.setItem("qr_attempts", attempts.toString());
   }
 
-  // Вызов метода signTranche() в EVM
+  // Calldata для вызова signTranche()
   const signMethodInterface = new ethers.Interface(["function signTranche()"]);
   const calldata = signMethodInterface.encodeFunctionData("signTranche");
 
-  // Формирование URI для кошелька (Tangem / Metamask / WalletConnect)
+  // Форматирование URI под Tangem / Web3 кошельки
   const qrUri = `ethereum:${ESCROW_ADDRESS}@1?data=${calldata}`;
 
   const roleNames = {
@@ -98,7 +98,11 @@ function generateSignatureQR(role) {
     receiver: "Приемка (Receiver)"
   };
 
-  showModal(`QR Подпись: ${roleNames[role]}`, qrUri, `Попытка ${isTrancheFunded ? 'безлимитно (депозит внесен)' : attempts + '/3'}`);
+  const statusMsg = isTrancheFunded 
+    ? "Статус: Депозит пополнен (Безлимитный режим)" 
+    : `Тестовая попытка ${attempts} из 3`;
+
+  showModal(`QR Подпись: ${roleNames[role]}`, qrUri, statusMsg);
 }
 
 function showModal(title, uriData, messageText) {
