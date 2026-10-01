@@ -3,68 +3,191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tranche Status Monitor</title>
+  <title>TRC20 / EVM Escrow Settlement</title>
   <link rel="stylesheet" href="style.css">
   
-  <!-- Ethers.js v6 via CDN -->
+  <!-- Ethers.js v6 & QRCode.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
-  <!-- QRCode.js via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
-<div class="tranche-card">
-  <div class="card-header">
-    <h2 class="card-title">Транш #<span id="trancheId">0</span></h2>
-  </div>
-  
-  <div class="info-row">
-    <span class="info-label">Объем EUR:</span>
-    <span class="info-value" id="eurVolume">-</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Курс EUR/USDT:</span>
-    <span class="info-value" id="rate">-</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Депозит (57.75%):</span>
-    <span class="info-value" id="grossUsdt">-</span>
-  </div>
-  
-  <div id="statusBadge" class="status-badge status-ok">Загрузка...</div>
-
-  <div class="pay-details">
-    <div class="info-row">
-      <span class="info-label">К доплате USDT:</span>
-      <span class="info-value text-danger" id="netUsdtToPay">0.00</span>
+  <!-- Шапка / Header -->
+  <header class="top-header">
+    <div class="brand">
+      <span class="dot-red"></span>
+      <h1>EVM Escrow Settlement</h1>
     </div>
-    <div class="info-row">
-      <span class="info-label">К доплате ETH:</span>
-      <span class="info-value text-danger" id="netEthToPay">0.00</span>
+    <div class="header-actions">
+      <button class="btn-secondary" id="langToggleBtn" onclick="toggleLanguage()">English</button>
+      <button class="btn-primary-red" onclick="connectMetaMask()">MetaMask / Web3</button>
+      <button class="btn-primary-purple" onclick="openGeneralWalletQR()">Tangem / WalletConnect</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Текущее время / Server Time -->
+    <div class="card time-card">
+      <span class="label">Текущее время (Лондон / GMT) / Current Time (London / GMT):</span>
+      <strong id="gmtTime">00:00:00 GMT</strong>
+    </div>
+
+    <!-- Баннер адреса контракта / Contract Banner -->
+    <div class="status-banner banner-success">
+      <span class="icon">✓</span>
+      <span>Контракт успешно выпущен и активен / Contract Active: <strong id="contractAddressDisplay">0x...</strong></span>
+    </div>
+
+    <!-- Данные пользователя / User Status Card -->
+    <div class="card grid-3">
+      <div>
+        <div class="card-label">Адрес кошелька / Wallet Address</div>
+        <div class="card-value-sm" id="userAddress">Не подключен / Not Connected</div>
+      </div>
+      <div>
+        <div class="card-label">Ваша роль / Your Role</div>
+        <div class="card-value-sm" id="userRole">Определение... / Detecting...</div>
+      </div>
+      <div>
+        <div class="card-label">Статус контракта / Contract Status</div>
+        <div id="contractStatusBadge" class="badge badge-warning">Ожидание депозита / Awaiting Deposit</div>
+      </div>
+    </div>
+
+    <!-- Мониторинг курса и депозита / Rate & Deposit Monitoring -->
+    <div class="card">
+      <h3>Мониторинг курса EUR/USDT и Депозита (Real-time) / EUR/USDT & Deposit Monitoring</h3>
+      <div class="grid-4 mt-12">
+        <div class="sub-card">
+          <div class="card-label">Объем транша / Tranche Volume</div>
+          <div class="card-value-lg" id="eurVolumeDisplay">0 EUR</div>
+        </div>
+        <div class="sub-card">
+          <div class="card-label">Курс Оракула / Oracle Rate EUR/USDT</div>
+          <div class="card-value-lg" id="oracleRateDisplay">Loading...</div>
+        </div>
+        <div class="sub-card">
+          <div class="card-label">Требуемый депозит USDT (57.75%) / Required USDT Deposit</div>
+          <div class="card-value-lg" id="requiredUsdtDisplay">0 USDT</div>
+        </div>
+        <div class="sub-card">
+          <div class="card-label">Требуемый ETH (Газ) / Required ETH (Gas)</div>
+          <div class="card-value-lg" id="requiredEthDisplay">0 ETH</div>
+        </div>
+      </div>
+
+      <div class="buffer-box mt-12">
+        <strong>Динамический буфер (Вернется Приемке в конце) / Dynamic Buffer (Returned to Receiver):</strong>
+        <div id="bufferStatus">0 USDT (Буфер отсутствует / Buffer Not Applied)</div>
+      </div>
+    </div>
+
+    <!-- Секция Пополнения Депозита / Receiver Deposit Section -->
+    <div class="card">
+      <h3>Депозит Приемки (Receiver) / Receiver Deposit</h3>
+      <p class="desc-text">Приемка переводит депозит в USDT + ETH на газ непосредственно со своего кошелька на адрес смарт-контракта. / Receiver deposits USDT + ETH gas directly to contract address.</p>
+      
+      <div class="deposit-action-row mt-12">
+        <button class="btn-action-main" onclick="handleDepositClick()">Пополнить Депозит / Deposit Funds</button>
+        <span class="deposit-info-text">
+          К доплате / To Pay: <strong id="netUsdtToPay" class="text-danger">0 USDT</strong> | <strong id="netEthToPay" class="text-danger">0 ETH</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- Этап 1: Фиксация и Подписи Сторон / Stage 1 Signatures -->
+    <div class="card">
+      <h3>Этап 1: Фиксация и Подписи Сторон / Stage 1: Signatures & Lock</h3>
+      
+      <div class="timer-section mt-12">
+        <div class="card-label">Таймер с момента первой подписи (10 минут) / Signature Timeout (10 min):</div>
+        <div class="timer-display" id="signatureTimer">10m 00s</div>
+        <p class="sub-text">* При истечении таймера подписи сбрасываются / Signatures reset if expired.</p>
+      </div>
+
+      <div class="grid-3 mt-12">
+        <!-- Инвестор -->
+        <div class="sub-card align-center">
+          <h4>Инвестор (Investor)</h4>
+          <div id="statusInvestor" class="badge badge-warning my-8">Ожидание / Pending</div>
+          <button class="btn-purple width-full" onclick="generateSignatureQR('investor')">Generate Investor Signature</button>
+        </div>
+
+        <!-- Оракул -->
+        <div class="sub-card align-center">
+          <h4>Оракул (Oracle)</h4>
+          <div id="statusOracle" class="badge badge-warning my-8">Ожидание / Pending</div>
+          <button class="btn-purple width-full" onclick="generateSignatureQR('oracle')">Generate Oracle Signature</button>
+        </div>
+
+        <!-- Приемка -->
+        <div class="sub-card align-center">
+          <h4>Приемка (Receiver)</h4>
+          <div id="statusReceiver" class="badge badge-warning my-8">Ожидание / Pending</div>
+          <button class="btn-purple width-full" onclick="generateSignatureQR('receiver')">Generate Receiver Signature</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Этап 2: Расчет и Выплаты / Stage 2 Payouts -->
+    <div class="card">
+      <h3>Этап 2: Расчет и Автоматические Выплаты / Stage 2: Automatic Payouts</h3>
+      <p class="desc-text">Исполнение происходит автоматически после получения 3 подписей. / Execution occurs automatically after 3 signatures are gathered.</p>
+
+      <h4 class="mt-16">Реестр Выплат Агентам (55.00%) / Agent Payout Register</h4>
+      <div class="table-responsive mt-8">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Участник / Participant</th>
+              <th>Доля (%) / Share (%)</th>
+              <th>Адрес Кошелька / Wallet Address</th>
+              <th>Расчетный Баланс USDT / Estimated USDT</th>
+            </tr>
+          </thead>
+          <tbody id="payeesTableBody">
+            <!-- Заполняется из app.js -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Журнал действий / Audit Log -->
+    <div class="card">
+      <h3>Журнал действий (Audit Log)</h3>
+      <div class="table-responsive mt-8">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>Кто / Who</th>
+              <th>Время (Лондон / GMT) / Time</th>
+              <th>Результат / Действие / Result & Action</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogBody">
+            <tr>
+              <td>1</td>
+              <td>System</td>
+              <td>--:--:-- GMT</td>
+              <td>Инициализация контракта / Contract Initialized</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Модальное окно с QR-кодом / QR Code Modal -->
+  <div id="qrModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeQRModal()">&times;</span>
+      <h3 id="modalTitle">QR Code для Tangem / Web3 Wallet</h3>
+      <div id="qrcode" class="qr-container"></div>
+      <p id="qrMessage" class="qr-msg"></p>
     </div>
   </div>
 
-  <!-- Секция генерации QR для подписей (Tangem) -->
-  <div class="qr-section">
-    <h3 class="qr-title">Подпись транша (Tangem / Wallet)</h3>
-    <div class="role-buttons">
-      <button class="btn-role" onclick="generateSignatureQR('investor')">Инвестор</button>
-      <button class="btn-role" onclick="generateSignatureQR('oracle')">Оракул</button>
-      <button class="btn-role" onclick="generateSignatureQR('receiver')">Приемка</button>
-    </div>
-  </div>
-</div>
-
-<!-- Модальное окно с QR-кодом -->
-<div id="qrModal" class="modal">
-  <div class="modal-content">
-    <span class="close-btn" onclick="closeQRModal()">&times;</span>
-    <h3 id="modalTitle">QR Code для Tangem</h3>
-    <div id="qrcode"></div>
-    <p id="qrMessage" class="qr-msg"></p>
-  </div>
-</div>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
